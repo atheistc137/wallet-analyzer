@@ -4,7 +4,7 @@ Tiny SQLite helper: initialize schema and upsert rows.
 
 import json
 import sqlite3
-from typing import Dict, Any, Iterable
+from typing import Dict, Any, Iterable, List, Tuple
 
 from config import DEFAULT_DB_PATH
 
@@ -25,6 +25,14 @@ CREATE TABLE IF NOT EXISTS transactions (
     contract_address TEXT,
     erc721_token_id TEXT,
     erc1155_metadata TEXT,
+    is_swap INTEGER NOT NULL DEFAULT 0,
+    swap_spent_asset TEXT,
+    swap_spent_amount REAL,
+    swap_spent_usd REAL,
+    swap_btc_price_at_purchase REAL,
+    swap_btc_amount REAL,
+    swap_btc_price_current REAL,
+    swap_btc_value_usd REAL,
     raw_json TEXT,
     created_at TEXT DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(chain, tx_hash, unique_id)
@@ -46,6 +54,24 @@ INSERT OR IGNORE INTO transactions
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 """
 
+_ADDITIONAL_COLUMNS: List[Tuple[str, str]] = [
+    ("is_swap", "INTEGER NOT NULL DEFAULT 0"),
+    ("swap_spent_asset", "TEXT"),
+    ("swap_spent_amount", "REAL"),
+    ("swap_spent_usd", "REAL"),
+    ("swap_btc_price_at_purchase", "REAL"),
+    ("swap_btc_amount", "REAL"),
+    ("swap_btc_price_current", "REAL"),
+    ("swap_btc_value_usd", "REAL"),
+]
+
+
+def _ensure_additional_columns(conn: sqlite3.Connection) -> None:
+    existing = {row[1] for row in conn.execute("PRAGMA table_info(transactions);")}
+    for column, definition in _ADDITIONAL_COLUMNS:
+        if column not in existing:
+            conn.execute(f"ALTER TABLE transactions ADD COLUMN {column} {definition};")
+
 
 def _connect(db_path: str = DEFAULT_DB_PATH) -> sqlite3.Connection:
     conn = sqlite3.connect(db_path)
@@ -57,6 +83,7 @@ def _connect(db_path: str = DEFAULT_DB_PATH) -> sqlite3.Connection:
 def init_db(db_path: str = DEFAULT_DB_PATH) -> None:
     with _connect(db_path) as conn:
         conn.executescript(_SCHEMA)
+        _ensure_additional_columns(conn)
 
 
 def upsert_events(chain: str, events: Iterable[Dict[str, Any]], db_path: str = DEFAULT_DB_PATH) -> int:
