@@ -6,13 +6,21 @@ import os
 from dataclasses import dataclass
 from typing import Dict, List, Optional
 
-from dotenv import load_dotenv
+try:
+    from dotenv import load_dotenv
+except ImportError:  # pragma: no cover - optional dependency fallback
+    def load_dotenv(*_args, **_kwargs):  # type: ignore
+        return False
 
 load_dotenv()
 
 ALCHEMY_API_KEY = os.getenv("ALCHEMY_API_KEY", "").strip()
 if not ALCHEMY_API_KEY:
     raise RuntimeError("Missing ALCHEMY_API_KEY. Set it in environment or a .env file.")
+
+COINGECKO_API_KEY = os.getenv("COINGECKO_API_KEY", "").strip()
+if not COINGECKO_API_KEY:
+    raise RuntimeError("Missing COINGECKO_API_KEY. Set it in environment or a .env file.")
 
 # Alchemy mainnet RPC base URLs
 ALCHEMY_RPC_BY_CHAIN: Dict[str, str] = {
@@ -75,3 +83,9 @@ class Chains:
     ARBITRUM: str = "arbitrum"
 
 CHAINS = [Chains.ETHEREUM, Chains.BASE, Chains.ARBITRUM]
+
+COINGECKO_PLATFORMS_BY_CHAIN: Dict[str, str] = {
+    Chains.ETHEREUM: "ethereum",
+    Chains.BASE: "base",
+    Chains.ARBITRUM: "arbitrum-one",
+}
